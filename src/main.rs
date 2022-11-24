@@ -1,6 +1,7 @@
+use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use tokio::time::Instant;
+use tokio::time::{Instant, timeout};
 
 mod clamav;
 
@@ -35,9 +36,10 @@ async fn main() -> Result<()> {
         Some(Commands::Scan { filename }) => {
             let stopwatch = Instant::now();
             tracing::info!("Scanning {}", filename);
-            clamav::instream(filename.to_owned())
-                .await
-                .context("Dokument wurde nicht gescannt!")?;
+
+            timeout(Duration::from_secs(28), clamav::instream(filename.to_owned()))
+                .await.context("Timeout von 28 Sekunden ueberschritten!")?.context("Dokument konnte nicht auf Malware ueberprueft werden!")?;
+
             let duration = stopwatch.elapsed();
             tracing::info!("Duration: {:?}", duration);
         }
